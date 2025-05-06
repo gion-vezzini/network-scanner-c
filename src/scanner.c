@@ -11,6 +11,7 @@
 #include <sys/wait.h>
 
 #define MAX_PIDS 65536
+
 pid_t ping_pids[MAX_PIDS];
 int ping_pid_count = 0;
 pthread_mutex_t pid_mutex = PTHREAD_MUTEX_INITIALIZER;
@@ -26,14 +27,6 @@ void register_pid(pid_t pid) {
     pthread_mutex_lock(&pid_mutex);
     if (ping_pid_count < MAX_PIDS) {
         ping_pids[ping_pid_count++] = pid;
-    }
-    pthread_mutex_unlock(&pid_mutex);
-}
-
-void kill_all_pings() {
-    pthread_mutex_lock(&pid_mutex);
-    for (int i = 0; i < ping_pid_count; i++) {
-        kill(ping_pids[i], SIGKILL);
     }
     pthread_mutex_unlock(&pid_mutex);
 }
