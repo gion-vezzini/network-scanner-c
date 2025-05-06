@@ -15,6 +15,28 @@
 #define MIN_HOST 1
 #define MAX_HOST 254
 
+#ifndef __APPLE__  // Linux systems already provide this
+#include <netinet/ip_icmp.h>
+#else
+// macOS does not define struct icmphdr, so it is defined manually here
+struct icmphdr {
+    uint8_t  type;      /* message type */
+    uint8_t  code;      /* type sub-code */
+    uint16_t checksum;
+    union {
+        struct {
+            uint16_t id;
+            uint16_t sequence;
+        } echo;
+        uint32_t   gateway;
+        struct {
+            uint16_t mtu;
+        } frag;
+    } un;
+};
+#define ICMP_ECHO 8
+#endif
+
 typedef struct {
     struct in_addr base_ip;
     int start;
@@ -75,7 +97,7 @@ void* scan_range(void* arg) {
         if (sendto(sockfd, sendbuf, sizeof(sendbuf), 0,
                 (struct sockaddr*)&addr, sizeof(addr)) <= 0) {
             if (params->verbosity >= 2)
-                printf("[Thread %lu] Send failed: %s\n", pthread_self(), ip_str);
+                printf("[Thread %p] Send failed: %s\n", (void*)pthread_self(), ip_str);
             continue;
         }
 
@@ -91,11 +113,11 @@ void* scan_range(void* arg) {
             if (recvfrom(sockfd, recvbuf, sizeof(recvbuf), 0,
                         (struct sockaddr*)&addr, &addrlen) > 0) {
                 if (params->verbosity >= 1)
-                    printf("[Thread %lu] Host alive: %s\n", pthread_self(), ip_str);
+                    printf("[Thread %p] Host alive: %s\n", (void*)pthread_self(), ip_str);
             }
         } else {
             if (params->verbosity >= 2)
-                printf("[Thread %lu] Timeout: %s\n", pthread_self(), ip_str);
+                printf("[Thread %p] Timeout: %s\n", (void*)pthread_self(), ip_str);
         }
     }
     close(sockfd);
