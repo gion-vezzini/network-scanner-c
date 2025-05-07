@@ -3,6 +3,7 @@
 #include <string.h>
 #include <arpa/inet.h>
 #include <stdint.h>
+#include "scanner.h"
 
 // Check if IP address is aligned to the subnet (e.g., .0 for /24)
 int is_ip_aligned(struct in_addr ip, int prefix_len) {
