@@ -1,11 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
 #include <arpa/inet.h>
 #include <stdint.h>
-#include <math.h>
-#include "scanner.h"
 
 // Check if IP address is aligned to the subnet (e.g., .0 for /24)
 int is_ip_aligned(struct in_addr ip, int prefix_len) {
@@ -81,16 +78,19 @@ int parse_cidr(const char* cidr, struct in_addr* base_ip, uint32_t* host_count) 
     return 1;
 }
 
+int print_banner(char* arg0) {
+    printf("Usage: %s <CIDR> [OPTIONS]\n", arg0);
+    printf("Example: %s 192.168.1.0/24 -v\n", arg0);
+    printf("\nOptions:\n");
+    printf("  <CIDR>            The network range to scan (e.g., 10.0.0.0/16)\n");
+    printf("  -q, --quiet       Suppress all non-essential output\n");
+    printf("  -v, --verbose     Enable verbose output for detailed info\n");
+    return 0;
+}
+
 int main(int argc, char *argv[]) {
     if (argc < 2 || strcmp(argv[1], "--help") == 0) {
-        printf("Usage: %s <CIDR> [-v[0|1|2]]\n", argv[0]);
-        printf("Example: %s 192.168.1.0/24 -v2\n", argv[0]);
-        printf("\nOptions:\n");
-        printf("  <CIDR>       The network range to scan (e.g., 10.0.0.0/16)\n");
-        printf("  -v[0|1|2]    Optional verbosity level:\n");
-        printf("                0 = Show alive hosts (default)\n");
-        printf("                1 = Show alive hosts and number of threads and threads ID\n");
-        printf("                2 = Show all hosts and number of threads and threads ID\n");
+        print_banner(argv[0]);
         return 0;
     }
 
