@@ -79,14 +79,13 @@ int parse_cidr(const char* cidr, struct in_addr* base_ip, uint32_t* host_count) 
     return 1;
 }
 
-int print_banner(char* arg0) {
+void print_banner(char* arg0) {
     printf("Usage: %s <CIDR> [OPTIONS]\n", arg0);
     printf("Example: %s 192.168.1.0/24 -v\n", arg0);
     printf("\nOptions:\n");
     printf("  <CIDR>            The network range to scan (e.g., 10.0.0.0/16)\n");
     printf("  -q, --quiet       Suppress all non-essential output\n");
     printf("  -v, --verbose     Enable verbose output for detailed info\n");
-    return 0;
 }
 
 int main(int argc, char *argv[]) {
@@ -96,20 +95,17 @@ int main(int argc, char *argv[]) {
     }
 
     const char* cidr = argv[1];
-    int verbosity = 0;
+    int verbosity = 1;
 
     // Parse optional verbosity flag
-    if (argc >= 3) {
-        if (strncmp(argv[2], "-v", 2) == 0) {
-            if (argv[2][2] != '\0') {
-                verbosity = atoi(&argv[2][2]);
-            } else {
-                verbosity = 1;
-            }
-            if (verbosity < 0 || verbosity > 2) {
-                fprintf(stderr, "Verbosity must be 0, 1, or 2\n");
-                return 1;
-            }
+    if (argc > 2) {
+        if (strcmp(argv[2], "--quiet") == 0 || strcmp(argv[2], "-q") == 0) {
+            verbosity = 0;
+        } else if (strcmp(argv[2], "--verbose") == 0 || strcmp(argv[2], "-v") == 0) {
+            verbosity = 2;
+        } else {
+            printf("Unknown verbosity level: %s\n", argv[2]);
+            return 1;
         }
     }
 
@@ -136,11 +132,10 @@ int main(int argc, char *argv[]) {
         if ((uint32_t)threads > host_count) threads = host_count;
     }
 
-    printf("Scanning network: %s\n", cidr);
-    printf("Total hosts to scan: %u\n", host_count);
     if (verbosity > 0) {
-        printf("Using %d threads\n", threads);
-        printf("Verbosity: %d\n\n", verbosity);
+        printf("Scanning network: %s\n", cidr);
+        printf("Total hosts to scan: %u\n\n", host_count);
+        printf("Using %d threads\n\n", threads);
     }
 
     start_scan_cidr(base_ip, host_count, threads, verbosity);
