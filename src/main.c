@@ -32,39 +32,39 @@ int is_ip_aligned(struct in_addr ip, int prefix_len) {
     return 1;
 }
 
-int parse_cidr(const char* cidr, struct in_addr* base_ip, uint32_t* host_count) {
+int parse_cidr(const char* pCidr, struct in_addr* pBase_ip, uint32_t* pHost_count) {
     char cidr_copy[32];
-    strncpy(cidr_copy, cidr, sizeof(cidr_copy) - 1);
+    strncpy(cidr_copy, pCidr, sizeof(cidr_copy) - 1);
     cidr_copy[sizeof(cidr_copy) - 1] = '\0';
 
-    char* slash = strchr(cidr_copy, '/');
-    if (!slash || *(slash + 1) == '\0') {
+    char* pSlash = strchr(cidr_copy, '/');
+    if (!pSlash || *(pSlash + 1) == '\0') {
         fprintf(stderr, "CIDR format required (e.g., 192.168.0.0/24)\n");
         printf("Use '--help' flag to see further explanation\n");
         return 0;
     }
 
-    *slash = '\0';
-    const char* prefix_str = slash + 1;
-    for (int i = 0; prefix_str[i]; ++i) {
-        if (prefix_str[i] < '0' || prefix_str[i] > '9') {
-            fprintf(stderr, "Invalid characters in CIDR prefix: /%s\n", prefix_str);
+    *pSlash = '\0';
+    const char* pPrefix_str = pSlash + 1;
+    for (int i = 0; pPrefix_str[i]; ++i) {
+        if (pPrefix_str[i] < '0' || pPrefix_str[i] > '9') {
+            fprintf(stderr, "Invalid characters in CIDR prefix: /%s\n", pPrefix_str);
             return 0;
         }
     }
 
-    int prefix_len = atoi(prefix_str);
+    int prefix_len = atoi(pPrefix_str);
     if (prefix_len < 0 || prefix_len > 32) {
         fprintf(stderr, "Invalid prefix length: /%d. Must be between 0 and 32.\n", prefix_len);
         return 0;
     }
 
-    if (inet_aton(cidr_copy, base_ip) == 0) {
+    if (inet_aton(cidr_copy, pBase_ip) == 0) {
         fprintf(stderr, "Invalid IP address: %s\n", cidr_copy);
         return 0;
     }
 
-    if (!is_ip_aligned(*base_ip, prefix_len)) {
+    if (!is_ip_aligned(*pBase_ip, prefix_len)) {
         fprintf(stderr, "IP %s is not aligned with /%d subnet. Use correct base (e.g., .0 for /24).\n", cidr_copy, prefix_len);
         return 0;
     }
@@ -75,13 +75,13 @@ int parse_cidr(const char* cidr, struct in_addr* base_ip, uint32_t* host_count) 
         return 0;
     }
 
-    *host_count = num_hosts;
+    *pHost_count = num_hosts;
     return 1;
 }
 
-void print_banner(char* arg0) {
-    printf("Usage: %s <CIDR> [OPTIONS]\n", arg0);
-    printf("Example: %s 192.168.1.0/24 -v\n", arg0);
+void print_banner(char* pArg0) {
+    printf("Usage: %s <CIDR> [OPTIONS]\n", pArg0);
+    printf("Example: %s 192.168.1.0/24 -v\n", pArg0);
     printf("\nOptions:\n");
     printf("  <CIDR>            The network range to scan (e.g., 10.0.0.0/16)\n");
     printf("  -q, --quiet       Suppress all non-essential output\n");

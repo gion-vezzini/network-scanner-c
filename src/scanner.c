@@ -31,12 +31,12 @@ void register_pid(pid_t pid) {
     pthread_mutex_unlock(&pid_mutex);
 }
 
-void* scan_range(void* arg) {
-    ScanParams* params = (ScanParams*) arg;
+void* scan_range(void* pArg) {
+    ScanParams* pParams = pArg;
 
-    for (uint32_t i = params->start_offset; i <= params->end_offset; i++) {
+    for (uint32_t i = pParams->start_offset; i <= pParams->end_offset; i++) {
         struct in_addr current_ip;
-        current_ip.s_addr = htonl(ntohl(params->base_ip.s_addr) + i);
+        current_ip.s_addr = htonl(ntohl(pParams->base_ip.s_addr) + i);
 
         char ip_str[INET_ADDRSTRLEN];
         inet_ntop(AF_INET, &current_ip, ip_str, sizeof(ip_str));
@@ -59,10 +59,10 @@ void* scan_range(void* arg) {
             waitpid(pid, &status, 0);
 
             if (WIFEXITED(status) && WEXITSTATUS(status) == 0) {
-                if (params->verbosity == 0) printf("Host alive: %s\n", ip_str);
-                else if (params->verbosity >= 1) printf("[Thread %p] Host alive: %s\n", (void*)pthread_self(), ip_str);
+                if (pParams->verbosity == 0) printf("Host alive: %s\n", ip_str);
+                else if (pParams->verbosity >= 1) printf("[Thread %p] Host alive: %s\n", (void*)pthread_self(), ip_str);
             } else {
-                if (params->verbosity >= 2)
+                if (pParams->verbosity >= 2)
                     printf("[Thread %p] No response: %s\n", (void*)pthread_self(), ip_str);
             }
         }
