@@ -122,14 +122,14 @@ int main(int argc, char *argv[]) {
     }
 
     // Dynamically determine thread count based on host count directly
-    int threads;
+    uint32_t threads;
     if (host_count <= 254) {
         threads = host_count;
     } else {
         threads = host_count / 8;
         if (threads < 256) threads = 256;
         if (threads > 1024) threads = 1024;
-        if ((uint32_t)threads > host_count) threads = host_count;
+        if (threads > host_count) threads = host_count;
     }
 
     if (verbosity > 0) {
