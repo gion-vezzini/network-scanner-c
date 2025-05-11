@@ -3,10 +3,12 @@
 #include <string.h>
 #include <arpa/inet.h>
 #include <stdint.h>
+#include <stdbool.h>
+
 #include "scanner.h"
 
 // Check if IP address is aligned to the subnet (e.g., .0 for /24)
-int is_ip_aligned(struct in_addr ip, int prefix_len) {
+bool is_ip_aligned(struct in_addr ip, int prefix_len) {
     unsigned char bytes[4];
     memcpy(bytes, &ip.s_addr, 4);
 
@@ -19,20 +21,23 @@ int is_ip_aligned(struct in_addr ip, int prefix_len) {
 
     if (prefix_len <= 8) {
         return (bytes[1] == 0 && bytes[2] == 0 && bytes[3] == 0);
-    } else if (prefix_len <= 16) {
+    }
+    if (prefix_len <= 16) {
         return (bytes[2] == 0 && bytes[3] == 0);
-    } else if (prefix_len <= 24) {
+    }
+    if (prefix_len <= 24) {
         return (bytes[3] == 0);
-    } else if (prefix_len < 32) {
+    }
+    if (prefix_len < 32) {
         int host_bits = 32 - prefix_len;
         int mask = ~((1 << host_bits) - 1) & 0xFF;
         return (bytes[3] & ~mask) == 0;
     }
 
-    return 1;
+    return true;
 }
 
-int parse_cidr(const char* pCidr, struct in_addr* pBase_ip, uint32_t* pHost_count) {
+bool parse_cidr(const char* pCidr, struct in_addr* pBase_ip, uint32_t* pHost_count) {
     char cidr_copy[32];
     strncpy(cidr_copy, pCidr, sizeof(cidr_copy) - 1);
     cidr_copy[sizeof(cidr_copy) - 1] = '\0';
@@ -41,7 +46,7 @@ int parse_cidr(const char* pCidr, struct in_addr* pBase_ip, uint32_t* pHost_coun
     if (!pSlash || *(pSlash + 1) == '\0') {
         fprintf(stderr, "CIDR format required (e.g., 192.168.0.0/24)\n");
         printf("Use '--help' flag to see further explanation\n");
-        return 0;
+        return false;
     }
 
     *pSlash = '\0';
@@ -49,34 +54,34 @@ int parse_cidr(const char* pCidr, struct in_addr* pBase_ip, uint32_t* pHost_coun
     for (int i = 0; pPrefix_str[i]; ++i) {
         if (pPrefix_str[i] < '0' || pPrefix_str[i] > '9') {
             fprintf(stderr, "Invalid characters in CIDR prefix: /%s\n", pPrefix_str);
-            return 0;
+            return false;
         }
     }
 
     int prefix_len = atoi(pPrefix_str);
     if (prefix_len < 0 || prefix_len > 32) {
         fprintf(stderr, "Invalid prefix length: /%d. Must be between 0 and 32.\n", prefix_len);
-        return 0;
+        return false;
     }
 
     if (inet_aton(cidr_copy, pBase_ip) == 0) {
         fprintf(stderr, "Invalid IP address: %s\n", cidr_copy);
-        return 0;
+        return false;
     }
 
     if (!is_ip_aligned(*pBase_ip, prefix_len)) {
         fprintf(stderr, "IP %s is not aligned with /%d subnet. Use correct base (e.g., .0 for /24).\n", cidr_copy, prefix_len);
-        return 0;
+        return false;
     }
 
     uint32_t num_hosts = (prefix_len == 32) ? 1 : (1U << (32 - prefix_len)) - 2;
     if (num_hosts == 0) {
         fprintf(stderr, "CIDR range results in zero usable hosts.\n");
-        return 0;
+        return false;
     }
 
     *pHost_count = num_hosts;
-    return 1;
+    return true;
 }
 
 void print_banner(char* pArg0) {
