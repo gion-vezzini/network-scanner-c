@@ -3,85 +3,105 @@
 #include <string.h>
 #include <arpa/inet.h>
 #include <stdint.h>
+#include <stdbool.h>
+
 #include "scanner.h"
 
+/* Network related constants */
+#define IP_BITS 32
+#define IP_BYTES 4
+#define OCTET_BITS 8
+#define OCTET_MAX 0xFF
+
+/* CIDR parsing constants */
+#define MAX_CIDR_LENGTH 32
+
+/* Thread calculation constants */
+#define MAX_HOSTS_SMALL_NETWORK 254
+#define MIN_THREAD_COUNT 256
+#define MAX_THREAD_COUNT 1024
+#define THREAD_DIVISION_FACTOR 8
+
 // Check if IP address is aligned to the subnet (e.g., .0 for /24)
-int is_ip_aligned(struct in_addr ip, int prefix_len) {
-    unsigned char bytes[4];
-    memcpy(bytes, &ip.s_addr, 4);
+bool is_ip_aligned(struct in_addr ip, int prefix_len) {
+    unsigned char bytes[IP_BYTES];
+    memcpy(bytes, &ip.s_addr, IP_BYTES);
 
     // Convert to host byte order
     uint32_t ip_host = ntohl(ip.s_addr);
-    bytes[0] = (ip_host >> 24) & 0xFF;
-    bytes[1] = (ip_host >> 16) & 0xFF;
-    bytes[2] = (ip_host >> 8) & 0xFF;
-    bytes[3] = ip_host & 0xFF;
+    bytes[0] = (ip_host >> 24) & OCTET_MAX;
+    bytes[1] = (ip_host >> 16) & OCTET_MAX;
+    bytes[2] = (ip_host >> 8) & OCTET_MAX;
+    bytes[3] = ip_host & OCTET_MAX;
 
-    if (prefix_len <= 8) {
+    if (prefix_len <= OCTET_BITS) {
         return (bytes[1] == 0 && bytes[2] == 0 && bytes[3] == 0);
-    } else if (prefix_len <= 16) {
+    }
+    if (prefix_len <= OCTET_BITS * 2) {
         return (bytes[2] == 0 && bytes[3] == 0);
-    } else if (prefix_len <= 24) {
+    }
+    if (prefix_len <= OCTET_BITS * 3) {
         return (bytes[3] == 0);
-    } else if (prefix_len < 32) {
-        int host_bits = 32 - prefix_len;
-        int mask = ~((1 << host_bits) - 1) & 0xFF;
+    }
+    if (prefix_len < IP_BITS) {
+        int host_bits = IP_BITS - prefix_len;
+        int mask = ~((1 << host_bits) - 1) & OCTET_MAX;
         return (bytes[3] & ~mask) == 0;
     }
 
-    return 1;
+    return true;
 }
 
-int parse_cidr(const char* cidr, struct in_addr* base_ip, uint32_t* host_count) {
-    char cidr_copy[32];
-    strncpy(cidr_copy, cidr, sizeof(cidr_copy) - 1);
+bool parse_cidr(const char* pCidr, struct in_addr* pBase_ip, uint32_t* pHost_count) {
+    char cidr_copy[MAX_CIDR_LENGTH];
+    strncpy(cidr_copy, pCidr, sizeof(cidr_copy) - 1);
     cidr_copy[sizeof(cidr_copy) - 1] = '\0';
 
-    char* slash = strchr(cidr_copy, '/');
-    if (!slash || *(slash + 1) == '\0') {
+    char* pSlash = strchr(cidr_copy, '/');
+    if (!pSlash || *(pSlash + 1) == '\0') {
         fprintf(stderr, "CIDR format required (e.g., 192.168.0.0/24)\n");
         printf("Use '--help' flag to see further explanation\n");
-        return 0;
+        return false;
     }
 
-    *slash = '\0';
-    const char* prefix_str = slash + 1;
-    for (int i = 0; prefix_str[i]; ++i) {
-        if (prefix_str[i] < '0' || prefix_str[i] > '9') {
-            fprintf(stderr, "Invalid characters in CIDR prefix: /%s\n", prefix_str);
-            return 0;
+    *pSlash = '\0';
+    const char* pPrefix_str = pSlash + 1;
+    for (int i = 0; pPrefix_str[i]; ++i) {
+        if (pPrefix_str[i] < '0' || pPrefix_str[i] > '9') {
+            fprintf(stderr, "Invalid characters in CIDR prefix: /%s\n", pPrefix_str);
+            return false;
         }
     }
 
-    int prefix_len = atoi(prefix_str);
-    if (prefix_len < 0 || prefix_len > 32) {
-        fprintf(stderr, "Invalid prefix length: /%d. Must be between 0 and 32.\n", prefix_len);
-        return 0;
+    int prefix_len = atoi(pPrefix_str);
+    if (prefix_len < 0 || prefix_len > IP_BITS) {
+        fprintf(stderr, "Invalid prefix length: /%d. Must be between 0 and %d.\n", prefix_len, IP_BITS);
+        return false;
     }
 
-    if (inet_aton(cidr_copy, base_ip) == 0) {
+    if (inet_aton(cidr_copy, pBase_ip) == 0) {
         fprintf(stderr, "Invalid IP address: %s\n", cidr_copy);
-        return 0;
+        return false;
     }
 
-    if (!is_ip_aligned(*base_ip, prefix_len)) {
+    if (!is_ip_aligned(*pBase_ip, prefix_len)) {
         fprintf(stderr, "IP %s is not aligned with /%d subnet. Use correct base (e.g., .0 for /24).\n", cidr_copy, prefix_len);
-        return 0;
+        return false;
     }
 
-    uint32_t num_hosts = (prefix_len == 32) ? 1 : (1U << (32 - prefix_len)) - 2;
+    uint32_t num_hosts = (prefix_len == IP_BITS) ? 1 : (1U << (IP_BITS - prefix_len)) - 2;
     if (num_hosts == 0) {
         fprintf(stderr, "CIDR range results in zero usable hosts.\n");
-        return 0;
+        return false;
     }
 
-    *host_count = num_hosts;
-    return 1;
+    *pHost_count = num_hosts;
+    return true;
 }
 
-void print_banner(char* arg0) {
-    printf("Usage: %s <CIDR> [OPTIONS]\n", arg0);
-    printf("Example: %s 192.168.1.0/24 -v\n", arg0);
+void print_banner(char* pArg0) {
+    printf("Usage: %s <CIDR> [OPTIONS]\n", pArg0);
+    printf("Example: %s 192.168.1.0/24 -v\n", pArg0);
     printf("\nOptions:\n");
     printf("  <CIDR>            The network range to scan (e.g., 10.0.0.0/16)\n");
     printf("  -q, --quiet       Suppress all non-essential output\n");
@@ -122,14 +142,14 @@ int main(int argc, char *argv[]) {
     }
 
     // Dynamically determine thread count based on host count directly
-    int threads;
-    if (host_count <= 254) {
+    uint32_t threads;
+    if (host_count <= MAX_HOSTS_SMALL_NETWORK) {
         threads = host_count;
     } else {
-        threads = host_count / 8;
-        if (threads < 256) threads = 256;
-        if (threads > 1024) threads = 1024;
-        if ((uint32_t)threads > host_count) threads = host_count;
+        threads = host_count / THREAD_DIVISION_FACTOR;
+        if (threads < MIN_THREAD_COUNT) threads = MIN_THREAD_COUNT;
+        if (threads > MAX_THREAD_COUNT) threads = MAX_THREAD_COUNT;
+        if (threads > host_count) threads = host_count;
     }
 
     if (verbosity > 0) {
