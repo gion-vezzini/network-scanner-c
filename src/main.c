@@ -1,11 +1,17 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <arpa/inet.h>
 #include <stdint.h>
 #include <stdbool.h>
-
 #include "scanner.h"
+
+#ifdef _WIN32
+    #include <winsock2.h>
+    #include <ws2tcpip.h>
+    #pragma comment(lib, "ws2_32.lib")  // Link with Winsock
+#else
+    #include <arpa/inet.h>
+#endif
 
 /* Network related constants */
 #define IP_BITS 32
@@ -79,10 +85,17 @@ bool parse_cidr(const char* pCidr, struct in_addr* pBase_ip, uint32_t* pHost_cou
         return false;
     }
 
-    if (inet_aton(cidr_copy, pBase_ip) == 0) {
-        fprintf(stderr, "Invalid IP address: %s\n", cidr_copy);
-        return false;
-    }
+     #ifdef _WIN32
+        if (InetPtonA(AF_INET, cidr_copy, pBase_ip) != 1) {
+            fprintf(stderr, "Invalid IP address: %s (Windows Error: %d)\n", cidr_copy, WSAGetLastError());
+            return 0;
+        }
+    #else
+        if (inet_aton(cidr_copy, pBase_ip) == 0) {
+            fprintf(stderr, "Invalid IP address: %s\n", cidr_copy);
+            return 0;
+        }
+    #endif
 
     if (!is_ip_aligned(*pBase_ip, prefix_len)) {
         fprintf(stderr, "IP %s is not aligned with /%d subnet. Use correct base (e.g., .0 for /24).\n", cidr_copy, prefix_len);

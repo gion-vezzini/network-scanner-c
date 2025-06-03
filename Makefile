@@ -1,13 +1,21 @@
-CC = gcc
+SRCS = src/main.c src/scanner.c
+
+TARGET = scanner
 CFLAGS = -Wall -pthread
+LDFLAGS = -pthread
 
-all: scanner
+ifeq ($(OS),Windows_NT)
+    TARGET = scanner.exe
+    LDFLAGS = -lws2_32 -pthread --static -m64
+    CFLAGS =
+endif
 
-scanner: src/main.o src/scanner.o
-	$(CC) $(CFLAGS) -o scanner src/main.o src/scanner.o
+all: $(TARGET)
 
-src/%.o: src/%.c
-	$(CC) $(CFLAGS) -c $< -o $@
+$(TARGET): $(SRCS)
+	gcc $(CFLAGS) -o $(TARGET) $(SRCS) $(LDFLAGS)
 
 clean:
-	rm -f src/*.o scanner
+	rm -f $(TARGET)
+
+.PHONY: all clean
